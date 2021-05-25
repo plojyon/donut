@@ -108,13 +108,17 @@ char getSymbol(int distance) {
 	if (distance < 0) return 'X';
 	switch (distance) {
 		case 0: return '#';
-		case 1: return '%';
-		case 2: return '@';
-		case 3: return '&';
+		case 1: return '@';
+		case 2: return '&';
+		case 3: return '%';
 		case 4: return '$';
-		case 5: return '*';
-		case 6: return '^';
-		case 7: return '.';
+		case 5: return '=';
+		case 6: return '*';
+		case 7: return '~';
+		case 8: return ';';
+		case 9: return ':';
+		case 10: return '.';
+		case 11: return '`';
 		default: return ' ';
 	}
 }
@@ -142,31 +146,45 @@ int main(int argc, char** argv) {
 	//printVector(a);
 	//printMatrix(m);
 	//Matrix project = makeMatrix(3, 2);
+
+	/*
+	Matrix r = rotation3d('y', PI/2);
+	Vector a = { .dim = 3, .data = malloc(3*sizeof(int)) };
+	a.data[0] = 0;
+	a.data[1] = 1;
+	a.data[2] = 0;
+	transform(&a, r);
+	printVector(a);
+	return 0;*/
+
 	#define POINT_COUNT 20
 	Vector points[POINT_COUNT];
 	for (int i = 0; i < POINT_COUNT; i++) {
 		Vector p = { .dim = 3, .data = malloc(3*sizeof(int)) };
 		points[i] = p;
 	}
-	int t = 0;
+	double t = 0;
 	while (true) {
-		Matrix rotation = rotation3d('x', t/10.0);
+		Matrix rotation = rotation3d('x', t);
 		for (int i = 0; i < POINT_COUNT/2; i++) {
 			points[i].data[0] = i;
-			points[i].data[1] = 3;
+			points[i].data[1] = POINT_COUNT/2-1;
+			points[i].data[2] = i;
 			transform(&points[i], rotation);
 		}
-		Matrix rotation2 = rotation3d('z', t/10.0);
+		Matrix rotation2 = rotation3d('z', t);
 		for (int i = POINT_COUNT/2; i < POINT_COUNT; i++) {
 			points[i].data[0] = i - POINT_COUNT/2;
 			points[i].data[1] = 0;
+			points[i].data[2] = 0;
 			transform(&points[i], rotation2);
 		}
 
 		show(points, POINT_COUNT);
-		printf("time is %f. sin(t) = %f, cos(t) = %f\n", t/10.0, sin(t/10.0), cos(t/10.0));
+		printf("time is %f. sin(t) = %f, cos(t) = %f\n", t, sin(t), cos(t));
 		usleep(200*1000);
-		t++;
+		t += 0.1;
 	}
 	return 0;
+	//*/
 }
