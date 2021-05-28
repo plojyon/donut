@@ -104,7 +104,21 @@ void transform(Vector* p, Matrix m) {
 }
 
 char getSymbol(int distance) {
+	distance /= 3;
+	distance += 3;
 	if (distance < 0) return 'X';
+	switch (distance) {
+		case 0: return '#';
+		case 1: return '@';
+		case 2: return '$';
+		case 3: return '%';
+		case 4: return '*';
+		case 5: return '~';
+		case 6: return ':';
+		case 7: return '.';
+		default: return ' ';
+	}
+
 	switch (distance) {
 		case 0: return '#';
 		case 1: return '@';
@@ -192,8 +206,8 @@ int main(int argc, char** argv) {
 	Matrix rotationY = rotation3d('y', 0.1);
 	Matrix rotationZ = rotation3d('z', 0.1);
 
-	const int INNER_POINTS = 30;
-	const int OUTER_POINTS = 20;
+	const int INNER_POINTS = 40;
+	const int OUTER_POINTS = 30;
 	const int inner_radius = 10;
 	const int outer_radius = 3;
 	Vector inner[INNER_POINTS];
