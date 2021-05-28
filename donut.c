@@ -3,9 +3,9 @@
 #include <stdbool.h>
 #include <math.h>
 #define SCREEN_WIDTH 20
-#define SCREEN_HEIGHT 10
+#define SCREEN_HEIGHT 20
 #define PI 3.14159265
-#define TWOPI 6
+#define TWOPI 6.28
 
 typedef struct _Vector {
 	int dim;
@@ -17,7 +17,6 @@ typedef struct _Matrix {
 	int h;
 	double** data;
 } Matrix;
-
 
 void printVector(Vector v) {
 	printf("(");
@@ -126,28 +125,27 @@ char getSymbol(int distance) {
 void show(Vector* points, int count) {
 	for (int y = -SCREEN_HEIGHT; y < SCREEN_HEIGHT; y++) {
 		for (int x = -SCREEN_WIDTH; x < SCREEN_WIDTH; x++) {
-			bool printed = false;
+			int closest = 1000000; // probably won't have a depth more than this
 			for (int k = 0; k < count; k++) {
 				if (round(points[k].data[0]) == x && round(points[k].data[1]) == y) {
-					printf("%c", getSymbol(round(points[k].data[2])));
-					printed = true;
-					break;
+					int dist = round(points[k].data[2]);
+					if (closest > dist) closest = dist;
 				}
 			}
-			if (!printed) printf(" ");
+			printf("%c", getSymbol(closest));
 		}
 		printf("\n");
 	}
 }
 
 int main(int argc, char** argv) {
-	//Vector a = { .dim = 3, .data = malloc(3*sizeof(int)) };
-	//Matrix m = makeMatrix(3, 3);
-	//printVector(a);
-	//printMatrix(m);
-	//Matrix project = makeMatrix(3, 2);
-
+	// DEMO: basic debug stuffs
 	/*
+	Vector a = { .dim = 3, .data = malloc(3*sizeof(int)) };
+	Matrix m = makeMatrix(3, 3);
+	printVector(a);
+	printMatrix(m);
+	Matrix project = makeMatrix(3, 2);
 	Matrix r = rotation3d('y', PI/2);
 	Vector a = { .dim = 3, .data = malloc(3*sizeof(int)) };
 	a.data[0] = 0;
@@ -155,9 +153,12 @@ int main(int argc, char** argv) {
 	a.data[2] = 0;
 	transform(&a, r);
 	printVector(a);
-	return 0;*/
+	return 0;
+	*/
 
-	#define POINT_COUNT 20
+	// DEMO: spinny lines and shit
+	/*
+	const int POINT_COUNT = 20;
 	Vector points[POINT_COUNT];
 	for (int i = 0; i < POINT_COUNT; i++) {
 		Vector p = { .dim = 3, .data = malloc(3*sizeof(int)) };
@@ -184,6 +185,47 @@ int main(int argc, char** argv) {
 		printf("time is %f. sin(t) = %f, cos(t) = %f\n", t, sin(t), cos(t));
 		usleep(200*1000);
 		t += 0.1;
+	}
+	*/
+
+	Matrix rotationX = rotation3d('x', 0.1);
+	Matrix rotationY = rotation3d('y', 0.1);
+	Matrix rotationZ = rotation3d('z', 0.1);
+
+	const int INNER_POINTS = 30;
+	const int OUTER_POINTS = 20;
+	const int inner_radius = 10;
+	const int outer_radius = 3;
+	Vector inner[INNER_POINTS];
+	Vector outer[OUTER_POINTS * INNER_POINTS];
+	for (int i = 0; i < INNER_POINTS; i++) {
+		Vector p = { .dim = 3, .data = malloc(3*sizeof(int)) };
+		inner[i] = p;
+		inner[i].data[0] = cos(i * TWOPI/INNER_POINTS)*inner_radius;
+		inner[i].data[1] = sin(i * TWOPI/INNER_POINTS)*inner_radius;
+		inner[i].data[2] = 0;
+		for (int j = 0; j < OUTER_POINTS; j++) {
+			int offset = OUTER_POINTS * i + j;
+			Vector r = { .dim = 3, .data = malloc(3*sizeof(int)) };
+			outer[offset] = r;
+			outer[offset].data[0] = cos(j * TWOPI/INNER_POINTS)*outer_radius;
+			outer[offset].data[1] = 0;
+			outer[offset].data[2] = sin(j * TWOPI/INNER_POINTS)*outer_radius;
+
+			outer[offset].data[0] += inner[i].data[0];
+			outer[offset].data[1] += inner[i].data[1];
+			outer[offset].data[2] += inner[i].data[2];
+		}
+	}
+
+	while (true) {
+		//show(inner, INNER_POINTS);
+		show(outer, OUTER_POINTS * INNER_POINTS);
+		for (int i = 0; i < INNER_POINTS * OUTER_POINTS; i++) {
+			transform(&outer[i], rotationX);
+			transform(&outer[i], rotationY);
+		}
+		usleep(100000);
 	}
 	return 0;
 	//*/
