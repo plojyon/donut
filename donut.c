@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <math.h>
+#include <time.h>
 #define SCREEN_WIDTH 20
 #define SCREEN_HEIGHT 20
 #define PI 3.14159265
@@ -95,8 +96,8 @@ Matrix rotation3d(char axis, double angle) {
 	return m;
 }
 
-int dot(Vector a, Vector b) {
-	int sum = 0;
+double dot(Vector a, Vector b) {
+	double sum = 0;
 	for (int i = 0; i < a.dim; i++) {
 		sum += a.data[i] * b.data[i];
 	}
@@ -119,9 +120,9 @@ void transform(Vector* p, Matrix m) {
 }
 
 char getSymbol(int distance) {
-	distance /= 3;
-	distance += 5;
-	if (distance < 0) return 'X';
+	distance /= 10;
+	distance += 7;
+	if (distance < 0) return '@';
 	switch (distance) {
 		case 0: return '@';
 		case 1: return '$';
@@ -139,7 +140,7 @@ char getSymbol(int distance) {
 	}
 }
 
-void show(Vector* points, int count) {
+void show(Vector* points, int count, Vector* normals, Vector lightSource) {
 	for (int y = -SCREEN_HEIGHT; y < SCREEN_HEIGHT; y++) {
 		for (int x = -SCREEN_WIDTH; x < SCREEN_WIDTH; x++) {
 			// find the closest point whose coordinates round to (x, y)
@@ -153,11 +154,13 @@ void show(Vector* points, int count) {
 				}
 			}
 			if (closest_index != -1) {
-				//int luminance = dot(normals[closest_index], lightSource);
-				//printf("%c", getSymbol(luminance));
-				if (round(points[closest_index].data[0]) != x) printf("X doesnt match\n");
-				if (round(points[closest_index].data[1]) != y) printf("Y doesnt match\n");
-				printf("%c", getSymbol(round(points[closest_index].data[2])));
+				Vector towards_light = { .dim = 3, .data = malloc(3*sizeof(int))};
+				towards_light.data[0] = lightSource.data[0] - normals[closest_index].data[0];
+				towards_light.data[1] = lightSource.data[1] - normals[closest_index].data[1];
+				towards_light.data[2] = lightSource.data[2] - normals[closest_index].data[2];
+				int luminance = round(dot(normals[closest_index], towards_light));
+				printf("%c", getSymbol(luminance));
+				//printf("%c", getSymbol(round(points[closest_index].data[2])));
 			}
 			else printf(" ");
 		}
@@ -166,24 +169,26 @@ void show(Vector* points, int count) {
 }
 
 int main(int argc, char** argv) {
-	Vector lightSource = { .dim = 3, .data = malloc(3*sizeof(int)) };
-	lightSource.data[0] = -SCREEN_WIDTH;
-	lightSource.data[1] = -SCREEN_HEIGHT;
-	lightSource.data[2] = 0;
+	srand(time(NULL));
 
-	Matrix rotationX = rotation3d('x', 0.1);
+	Vector lightSource = { .dim = 3, .data = malloc(3*sizeof(int)) };
+	lightSource.data[0] = 0;
+	lightSource.data[1] = 10;
+	lightSource.data[2] = -10;
+
+	Matrix rotationX = rotation3d('x', 0.3);
 	Matrix rotationY = rotation3d('y', 0.1);
-	Matrix rotationZ = rotation3d('z', 0.1);
+	Matrix rotationZ = rotation3d('z', 0.2);
 
 	const int INNER_POINTS = 50;
 	const int OUTER_POINTS = 50;
 	const int POINTS = INNER_POINTS * OUTER_POINTS;
 	const int inner_radius = 6;
-	const int outer_radius = 3;
+	const int outer_radius = 6;
 
 	Vector inner[INNER_POINTS];
 	Vector outer[POINTS * 2];
-	//Vector* normals = &outer[POINTS];
+	Vector* normals = &outer[POINTS];
 	// append normals array at the end of the outer array,
 	// so I only have to call transform() once
 
@@ -205,23 +210,25 @@ int main(int argc, char** argv) {
 			outer[offset].data[0] += inner[i].data[0];
 			outer[offset].data[1] += inner[i].data[1];
 			outer[offset].data[2] += inner[i].data[2];
-			transform(&outer[offset], rotate);
 
-			//Vector s = { .dim = 3, .data = malloc(3*sizeof(int)) };
-			//normals[offset] = s;
-			//normals[offset].data[0] = outer[offset].data[0] - inner[i].data[0];
-			//normals[offset].data[1] = outer[offset].data[1] - inner[i].data[1];
-			//normals[offset].data[2] = outer[offset].data[2] - inner[i].data[2];
+			Vector s = { .dim = 3, .data = malloc(3*sizeof(int)) };
+			normals[offset] = s;
+			normals[offset].data[0] = outer[offset].data[0] - inner[i].data[0];
+			normals[offset].data[1] = outer[offset].data[1] - inner[i].data[1];
+			normals[offset].data[2] = outer[offset].data[2] - inner[i].data[2];
+
+			transform(&outer[offset], rotate);
+			transform(&normals[offset], rotate);
 		}
 		transform(&inner[i], rotate);
 		destroyMatrix(&rotate);
 	}
 
 	while (true) {
-		show(outer, POINTS);
-		for (int i = 0; i < POINTS; i++) {
+		show(outer, POINTS, normals, lightSource);
+		for (int i = 0; i < POINTS * 2; i++) {
 			transform(&outer[i], rotationX);
-			transform(&outer[i], rotationY);
+			transform(&outer[i], rotationZ);
 		}
 		usleep(100000);
 	}
