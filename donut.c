@@ -192,7 +192,7 @@ int main(int argc, char** argv) {
 	lightSource.data[2] = 0;
 
 	Matrix rotationX = rotation3d('x', 0.3);
-	Matrix rotationY = rotation3d('y', 0.1);
+	//Matrix rotationY = rotation3d('y', 0.1); // unused
 	Matrix rotationZ = rotation3d('z', 0.2);
 
 	const int INNER_POINTS = 60;
@@ -250,7 +250,12 @@ int main(int argc, char** argv) {
 			transform(&outer[i], rotationZ);
 		}
 		fflush(stdout);
-		usleep(100000);
+
+		// disable implicit funtion declaration warning for gcc
+		#pragma GCC diagnostic push
+		#pragma GCC diagnostic ignored "-Wimplicit-function-declaration"
+		usleep(100 * 1000); // <- ignore compiler warning
+		#pragma GCC diagnostic pop
 	}
 	return 0;
 }
