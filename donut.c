@@ -3,8 +3,8 @@
 #include <stdbool.h>
 #include <math.h>
 #include <time.h>
-#define SCREEN_WIDTH 20
-#define SCREEN_HEIGHT 20
+#define SCREEN_WIDTH 13
+#define SCREEN_HEIGHT 14
 #define PI 3.14159265
 #define TWOPI 6.28
 
@@ -19,12 +19,21 @@ typedef struct _Matrix {
 	double** data;
 } Matrix;
 
+// maps x from [min_x, max_x] to the interval [min_y, max_y]
+double map(double x, double min_x, double max_x, double min_y, double max_y) {
+	x -= min_x;
+	x /= max_x-min_x;
+	x *= max_y-min_y;
+	x += min_y;
+	return x;
+}
+
 void printVector(Vector v) {
 	printf("(");
 	for (int i = 0; i < v.dim-1; i++) {
-		printf("%f, ", v.data[i]);
+		printf("%5.2f, ", v.data[i]);
 	}
-	printf("%f)\n", v.data[v.dim-1]);
+	printf("%5.2f)", v.data[v.dim-1]);
 }
 
 void printMatrix(Matrix m) {
@@ -104,6 +113,28 @@ double dot(Vector a, Vector b) {
 	return sum;
 }
 
+bool getnan(Vector v) {
+	for (int i = 0; i < v.dim; i++) {
+		if (isnan(v.data[i])) {
+			return true;
+		}
+	}
+	return false;
+}
+
+double length(Vector v) {
+	double len = 0;
+	for (int i = 0; i < v.dim; i++) {
+		len += v.data[i]*v.data[i];
+	}
+	return sqrt(len);
+}
+
+// returns: [-1, 1]
+double angle(Vector a, Vector b) {
+	return dot(a, b) / (length(a)*length(b));
+}
+
 void transform(Vector* p, Matrix m) {
 	// p->dim == m.h
 	Vector res = { .dim = p->dim, .data = malloc(p->dim * sizeof(double)) };
@@ -119,25 +150,14 @@ void transform(Vector* p, Matrix m) {
 	free(res.data);
 }
 
-char getSymbol(int distance) {
-	distance /= 10;
-	distance += 7;
-	if (distance < 0) return '@';
-	switch (distance) {
-		case 0: return '@';
-		case 1: return '$';
-		case 2: return '#';
-		case 3: return '*';
-		case 4: return '!';
-		case 5: return '=';
-		case 6: return ';';
-		case 7: return ':';
-		case 8: return '~';
-		case 9: return '-';
-		case 10: return ',';
-		case 11: return '.';
-		default: return ' ';
-	}
+const char SYMBOLS[13] = {' ', '.', ',', '-', '~', ':', ';', '=', '!', '*', '#', '$', '@'};
+const int SYMBOL_COUNT = 12; // do not count ' '
+char getSymbol(double luminance) {
+	luminance = map(luminance, -1, 1, 0, SYMBOL_COUNT);
+	int lux = (int)round(luminance);
+	if (lux > SYMBOL_COUNT) return '?'; // shouldn't happen
+	if (lux < 0) return '?'; // shouldn't happen
+	return SYMBOLS[lux];
 }
 
 void show(Vector* points, int count, Vector* normals, Vector lightSource) {
@@ -148,19 +168,14 @@ void show(Vector* points, int count, Vector* normals, Vector lightSource) {
 			for (int k = 0; k < count; k++) {
 				if (round(points[k].data[0]) == x && round(points[k].data[1]) == y) {
 					if (closest_index == -1) closest_index = k;
-					int depth = round(points[k].data[2]);
-					int min_depth = round(points[closest_index].data[2]);
+					double depth = points[k].data[2];
+					double min_depth = points[closest_index].data[2];
 					if (depth < min_depth) closest_index = k;
 				}
 			}
 			if (closest_index != -1) {
-				Vector towards_light = { .dim = 3, .data = malloc(3*sizeof(int))};
-				towards_light.data[0] = lightSource.data[0] - normals[closest_index].data[0];
-				towards_light.data[1] = lightSource.data[1] - normals[closest_index].data[1];
-				towards_light.data[2] = lightSource.data[2] - normals[closest_index].data[2];
-				int luminance = round(dot(normals[closest_index], towards_light));
+				double luminance = -angle(normals[closest_index], lightSource);
 				printf("%c", getSymbol(luminance));
-				//printf("%c", getSymbol(round(points[closest_index].data[2])));
 			}
 			else printf(" ");
 		}
@@ -173,18 +188,18 @@ int main(int argc, char** argv) {
 
 	Vector lightSource = { .dim = 3, .data = malloc(3*sizeof(int)) };
 	lightSource.data[0] = 0;
-	lightSource.data[1] = 10;
-	lightSource.data[2] = -10;
+	lightSource.data[1] = 1;
+	lightSource.data[2] = 0;
 
 	Matrix rotationX = rotation3d('x', 0.3);
 	Matrix rotationY = rotation3d('y', 0.1);
 	Matrix rotationZ = rotation3d('z', 0.2);
 
-	const int INNER_POINTS = 50;
-	const int OUTER_POINTS = 50;
+	const int INNER_POINTS = 60;
+	const int OUTER_POINTS = 60;
 	const int POINTS = INNER_POINTS * OUTER_POINTS;
-	const int inner_radius = 6;
-	const int outer_radius = 6;
+	const int inner_radius = 8;
+	const int outer_radius = 4;
 
 	Vector inner[INNER_POINTS];
 	Vector outer[POINTS * 2];
@@ -196,21 +211,24 @@ int main(int argc, char** argv) {
 		Matrix rotate = rotation3d('z', i * TWOPI/INNER_POINTS);
 		Vector p = { .dim = 3, .data = malloc(3*sizeof(int)) };
 		inner[i] = p;
-		inner[i].data[0] = inner_radius;
+		inner[i].data[0] = 0;
 		inner[i].data[1] = inner_radius;
 		inner[i].data[2] = 0;
 		for (int j = 0; j < OUTER_POINTS; j++) {
 			int offset = OUTER_POINTS * i + j;
 			Vector r = { .dim = 3, .data = malloc(3*sizeof(int)) };
 			outer[offset] = r;
-			outer[offset].data[0] = cos(j * TWOPI/INNER_POINTS)*outer_radius;
-			outer[offset].data[1] = 0;
-			outer[offset].data[2] = sin(j * TWOPI/INNER_POINTS)*outer_radius;
+			outer[offset].data[0] = 0;
+			outer[offset].data[1] = sin(j * TWOPI/OUTER_POINTS)*outer_radius;
+			outer[offset].data[2] = cos(j * TWOPI/OUTER_POINTS)*outer_radius;
 
 			outer[offset].data[0] += inner[i].data[0];
 			outer[offset].data[1] += inner[i].data[1];
 			outer[offset].data[2] += inner[i].data[2];
 
+			// calculate the surface normal at this point
+			// at each point, the surface normal is the vector
+			// from the inner point to it's outer point
 			Vector s = { .dim = 3, .data = malloc(3*sizeof(int)) };
 			normals[offset] = s;
 			normals[offset].data[0] = outer[offset].data[0] - inner[i].data[0];
@@ -226,10 +244,12 @@ int main(int argc, char** argv) {
 
 	while (true) {
 		show(outer, POINTS, normals, lightSource);
-		for (int i = 0; i < POINTS * 2; i++) {
+
+		for (int i = 0; i < 2*POINTS; i++) {
 			transform(&outer[i], rotationX);
 			transform(&outer[i], rotationZ);
 		}
+		fflush(stdout);
 		usleep(100000);
 	}
 	return 0;
